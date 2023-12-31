@@ -3,14 +3,33 @@ import collections
 from graph import *
 
 
+def print_helper(edges):
+    res = []
+    for edge in edges:
+        start, end = edge.get_start_node(), edge.get_end_node()
+        edge = ""
+        for node in [start, end]:
+            if type(node) == OperationNode:
+                edge = edge + str(node.get_op())
+            else:
+                edge = edge + str(node.get_val())
+        # print(edge)
+        # res.append(f"{edge.get_start_node()}, {edge.get_end_node()}")
+    # print(res)
+
+
 def process_user_input(function):
 
     # interpret function
     variables_degrees = {}
+    operation_sequence = []
+    operations = ["+", "-", "/", "*"]
 
     acc = ""
     for i in function:
         if i != " ":
+            if i in operations:
+                operation_sequence.append(i)
             acc = acc + i
         else:
             # now we reach a whitespace, meaning that we've encountered one polynomial term
@@ -27,19 +46,32 @@ def process_user_input(function):
             elif variable in variables_degrees and variable is not None and degree is not None:
                 variables_degrees[variable].append(degree)
 
+            if (variable, degree) != (None, None):
+                operation_sequence.append((variable, degree))
+
             acc = ""
 
-    # analyze +, - etc operations too
     # create graph
 
+    edges = []
     for variable in variables_degrees:
         degrees = variables_degrees[variable]
-
         for degree in degrees:
             var_nodes = []
             for _ in range(degree):
-                var_nodes.append(DataNode(None, variable))
+                var_nodes.append(DataNode(0, variable))
 
+            # construct multiple copies of the variable node v if there exists a term v^a, a > 1
+            multiplication_node = OperationNode("*")
+            if degree > 1:
+                for var_node in var_nodes:
+                    edges.append(Edge(var_node, multiplication_node))
+
+            # now add an edge from the multiplication_node to the output node (for instance, x^3)
+            output_node = DataNode(0, f"{variable}^{degree}")
+            edges.append(Edge(multiplication_node, output_node))
+
+    print_helper(edges)
 
 
 if __name__ == "__main__":
@@ -52,7 +84,7 @@ if __name__ == "__main__":
     parser.add_argument("value")
 
     arguments = parser.parse_args()
-    print(arguments.function)
+    # print(arguments.function)
     print(process_user_input(arguments.function + " "))
 
 

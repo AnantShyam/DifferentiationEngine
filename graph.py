@@ -1,9 +1,13 @@
 import collections
+import string
 
 
 class DataNode:
 
     def __init__(self, val, var_name):
+        assert isinstance(val, int)
+        assert type(var_name) == str
+
         self._val = val
         self.var_name = var_name
 
