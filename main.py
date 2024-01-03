@@ -1,77 +1,87 @@
 import argparse
 import collections
+import random
 from graph import *
 
 
-def print_helper(edges):
-    res = []
-    for edge in edges:
-        start, end = edge.get_start_node(), edge.get_end_node()
-        edge = ""
-        for node in [start, end]:
-            if type(node) == OperationNode:
-                edge = edge + str(node.get_op())
+def construct_graph(function, variable_names, variable_values, variable):
+    v, values = [], []
+    # parse variable_names and get all distinct variables
+    for i in variable_names:
+        if i.isalpha() and i not in v:
+            v.append(i)
+    for i in variable_values:
+        if i.isdigit():
+            values.append(i)
+    num_vars, num_vals = len(v), len(values)
+    assert num_vars == num_vals
+    variables = {v[i]: values[i] for i in range(num_vars)}
+
+    adj = {}
+    for variable in variables:
+        adj[variable] = []
+
+    n = len(function)
+
+    operators = ['+', "*"]
+
+    variable_groups = []
+    group = ""
+    for i in range(n):
+        if function[i] == '(':  # start of a new group
+            group = ""
+        elif function[i] == ')':  # end of group
+            variable_groups.append(group)
+            group = ""
+        elif function[i] not in [' ', ',']:
+            group = group + function[i]
+
+    for idx, group in enumerate(variable_groups):
+        v, operator = [], []
+        for i in group:
+            if i in variables:
+                v.append(i)
+            elif i in operators:
+                operator.append(f"{i}{idx}")
+
+        for i in range(0, len(v), 2):
+            operator_idx = i//2
+            adj[v[i]].append(operator[operator_idx])
+            if operator[operator_idx] not in adj:
+                adj[operator[operator_idx]] = [v[i]]
             else:
-                edge = edge + str(node.get_val())
-        # print(edge)
-        # res.append(f"{edge.get_start_node()}, {edge.get_end_node()}")
-    # print(res)
+                adj[operator[operator_idx]].append(v[i])
 
+            # variables[operator[operator_idx]] = 1
 
-def process_user_input(function):
+            adj[v[i + 1]].append(operator[operator_idx])
+            if operator[operator_idx] not in adj:
+                adj[operator[operator_idx]] = [v[i + 1]]
+            else:
+                adj[operator[operator_idx]].append(v[i + 1])
 
-    # interpret function
-    variables_degrees = {}
-    operation_sequence = []
-    operations = ["+", "-", "/", "*"]
+    graph = {}
+    for variable in adj:
+        variable_value = variables[variable] if variable in variables else 1
+        new_key = f"{variable},{variable_value}"
+        neighbors = []
+        for neighbor in adj[variable]:
+            neighbor_value = variables[neighbor] if neighbor in variables else 1
+            neighbors.append(f"{neighbor},{neighbor_value}")
+        graph[new_key] = neighbors
 
-    acc = ""
-    for i in function:
-        if i != " ":
-            if i in operations:
-                operation_sequence.append(i)
-            acc = acc + i
-        else:
-            # now we reach a whitespace, meaning that we've encountered one polynomial term
-            # get variable and degree
-            potential_variables = [i for i in acc if i.isalpha()]
-            variable = potential_variables[0] if potential_variables else None
+    revised_graph = {}
+    for variable in graph:
+        comma_idx = variable.find(',')
+        name, val = variable[:comma_idx], variable[comma_idx + 1:]
+        variable_node = Node(name, val)
+        revised_graph[variable_node] = []
+        for neighbor in graph[variable]:
+            comma_idx = neighbor.find(',')
+            name, val = neighbor[:comma_idx], neighbor[comma_idx + 1:]
+            revised_graph[variable_node].append(Node(name, val))
 
-            potential_degrees = [acc[i] for i in range(len(acc)) if (acc[i].isdigit() and i != 0 and acc[i - 1] == "^")]
-
-            degree = int(potential_degrees[0]) if potential_degrees else None
-
-            if variable not in variables_degrees and variable is not None and degree is not None:
-                variables_degrees[variable] = [degree]
-            elif variable in variables_degrees and variable is not None and degree is not None:
-                variables_degrees[variable].append(degree)
-
-            if (variable, degree) != (None, None):
-                operation_sequence.append((variable, degree))
-
-            acc = ""
-
-    # create graph
-
-    edges = []
-    for variable in variables_degrees:
-        degrees = variables_degrees[variable]
-        for degree in degrees:
-            var_nodes = []
-            for _ in range(degree):
-                var_nodes.append(DataNode(0, variable))
-
-            # construct multiple copies of the variable node v if there exists a term v^a, a > 1
-            multiplication_node = OperationNode("*")
-            if degree > 1:
-                for var_node in var_nodes:
-                    edges.append(Edge(var_node, multiplication_node))
-
-            # now add an edge from the multiplication_node to the output node (for instance, x^3)
-            output_node = DataNode(0, f"{variable}^{degree}")
-            edges.append(Edge(multiplication_node, output_node))
-
-    print_helper(edges)
+    return revised_graph
 
 
 if __name__ == "__main__":
@@ -80,11 +90,13 @@ if __name__ == "__main__":
     # python main.py "function" "variable" "value"
     parser = argparse.ArgumentParser(description="Process User Command Line Arguments")
     parser.add_argument("function")
+    parser.add_argument("names")
+    parser.add_argument("values")
     parser.add_argument("variable")
-    parser.add_argument("value")
 
     arguments = parser.parse_args()
     # print(arguments.function)
-    print(process_user_input(arguments.function + " "))
-
+    # print(process_user_input(arguments.function + " "))
+    g = construct_graph(arguments.function, arguments.names, arguments.values, arguments.variable)
+    print_graph(g)
 
