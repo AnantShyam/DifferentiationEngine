@@ -18,8 +18,13 @@ def construct_graph(function, variable_names, variable_values, variable):
     variables = {v[i]: values[i] for i in range(num_vars)}
 
     adj = {}
+
+    forward_adj = {}
+
     for variable in variables:
         adj[variable] = []
+        forward_adj[variable] = []
+
 
     n = len(function)
 
@@ -47,6 +52,8 @@ def construct_graph(function, variable_names, variable_values, variable):
         for i in range(0, len(v), 2):
             operator_idx = i//2
             adj[v[i]].append(operator[operator_idx])
+            forward_adj[v[i]].append(operator[operator_idx])
+
             if operator[operator_idx] not in adj:
                 adj[operator[operator_idx]] = [v[i]]
             else:
@@ -55,10 +62,18 @@ def construct_graph(function, variable_names, variable_values, variable):
             # variables[operator[operator_idx]] = 1
 
             adj[v[i + 1]].append(operator[operator_idx])
+            forward_adj[v[i + 1]].append(operator[operator_idx])
             if operator[operator_idx] not in adj:
                 adj[operator[operator_idx]] = [v[i + 1]]
             else:
                 adj[operator[operator_idx]].append(v[i + 1])
+
+            forward_adj[operator[operator_idx]] = []
+
+    final_node = "l1"
+    for key in forward_adj:
+        if not forward_adj[key]:
+            forward_adj[key].append(final_node)
 
     graph = {}
     for variable in adj:
